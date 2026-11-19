@@ -1,0 +1,37 @@
+name: Build APK
+
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Giải nén project
+        run: |
+          ZIP=$(ls *.zip | head -n 1)
+          echo "Dùng file: $ZIP"
+          unzip -o -q "$ZIP" -d project
+          DIR=$(dirname "$(find project -name gradlew -maxdepth 3 | head -n 1)")
+          echo "PROJECT_DIR=$DIR" >> $GITHUB_ENV
+          chmod +x "$DIR/gradlew"
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Build APK
+        run: |
+          cd "$PROJECT_DIR"
+          echo "sdk.dir=$ANDROID_HOME" > local.properties
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
+          ./gradlew assembleRelease --no-daemon --stacktrace
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ChanCuocGoi-apk
+          path: ${{ env.PROJECT_DIR }}/app/build/outputs/apk/release/*.apk
